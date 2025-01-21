@@ -10,10 +10,10 @@ class UserRole(Enum):
 
 class User(models.Model):
     id = models.AutoField(primary_key=True, unique=True)
-    username = models.CharField(max_length=100, null=False,required=True)
+    username = models.CharField(max_length=100, null=False,)
     email = models.EmailField(unique=True, max_length=100, null=False)
-    password = models.CharField(max_length=100, null=False,required=True)
-    role = models.CharField(max_length=100,choices=[(role.value, role.name) for role in UserRole], null=False,required=True)
+    password = models.CharField(max_length=100, null=False,)
+    role = models.CharField(max_length=100,choices=[(role.value, role.name) for role in UserRole], null=False,)
 
 
 
@@ -27,9 +27,9 @@ class User(models.Model):
 
 class Book(models.Model):
     id = models.AutoField(primary_key=True, unique=True)
-    title = models.CharField(max_length=100, null=False,required=True)
-    author = models.CharField(max_length=100, null=False,required=True)
-    description = models.CharField(max_length=350, null=False,required=True)
+    title = models.CharField(max_length=100, null=False)
+    author = models.CharField(max_length=100, null=False,)
+    description = models.CharField(max_length=350, null=False,)
     published_by = models.ForeignKey(User, related_name='books', on_delete=models.CASCADE)
     cover_image = models.ImageField(upload_to='books/covers/')
     created_at = models.DateTimeField(auto_now_add=True)
