@@ -21,10 +21,22 @@ class UserSignupSerializer(serializers.ModelSerializer):
 
         return data
 
+class AuthSignUpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email", "role", "username", "password"]
+
+    def validate(self, attrs):
+        if 'email' not in attrs:
+            raise serializers.ValidationError({'email': 'This field is required'})
+        if 'role' not in attrs:
+            raise serializers.ValidationError({'role': 'This field is required'})
+        return attrs
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=50)
     password = serializers.CharField(max_length=50)
+    role = serializers.CharField(max_length=50)
 
 
     def validate(self, data):
@@ -32,8 +44,14 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({"email": "This field is required."})
         if 'password' not in data:
             raise serializers.ValidationError({"password": "This field is required."})
+        if 'role' not in data:
+            raise serializers.ValidationError({"role": "This field is required."})
+
         return data
-    
+       
+class VerifyAccountSerializer(serializers.Serializer):
+        otp = serializers.CharField(max_length=6)
+        email = serializers.EmailField(max_length=50)  
 
 
 
@@ -41,7 +59,9 @@ class UserLoginSerializer(serializers.Serializer):
 class PublishBookSerializer(serializers.ModelSerializer):       
         class Meta:
             model = Book
-            fields = ['title', 'author', 'description','published_by', 'cover_image']
+            fields = ['id','title', 'author', 'description','published_by', ]
+            read_only_fields= ['published_by']
+
 
 
         def validate_title(self, value):
@@ -59,10 +79,7 @@ class PublishBookSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Description field is required.")
             return value
 
-        def validate_cover_image(self, value):
-            if not value:
-                raise serializers.ValidationError("Image field is required.")
-            return value
+       
         
        
         

@@ -11,7 +11,7 @@ router = routers.DefaultRouter()
 
 router.register('signup', views.UserSignupViewSet, basename='signup')
 router.register('login', views.UserLoginViewSet, basename='login')
-router.register('publish-book', views.PublishBookViewSet, basename='publish-book')
+router.register('publishbook', views.PublishBookViewSet, basename='publishbook')
 
 
 urlpatterns = router.urls

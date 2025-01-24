@@ -3,20 +3,29 @@ from django.conf import settings
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth.models import User
+
+from .models import User
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework import  exceptions, authentication
+
 
 class JWTAuthentication(BaseAuthentication):
-    """Custom authentication class for JWT"""
-
     def authenticate(self, request):
-        auth_header = request.headers.get("Authorization")
+        # token = request.headers.get("token")
+        auth_data = authentication.get_authorization_header(request).decode('utf-8')
 
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return None  # No authentication provided
+        if not auth_data or not auth_data.startswith('Bearer '):
+            return None
 
-        token = auth_header.split(" ")[1]  # Extract token from "Bearer <token>"
+        token = auth_data.split(' ')[1]
+
+        
+        if not token:
+            return Response({"error": "Token not provided"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
+            print("Token",token)
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         except ExpiredSignatureError:
             raise AuthenticationFailed("Token has expired")
@@ -25,8 +34,33 @@ class JWTAuthentication(BaseAuthentication):
 
         # Retrieve user from payload
         try:
-            user = User.objects.get(email=payload["email"])
-        except User.DoesNotExist:
-            raise AuthenticationFailed("User not found")
+            email = payload.get("email") 
+            if not email:
+                raise ValueError("Email is missing from the token payload")
 
-        return (user, token)  # DRF expects (user, auth)
+            print("Email:", email)
+
+            user= User.objects.filter(email=email).first()
+            if user is None:
+                raise exceptions.AuthenticationFailed('User not found')
+            return (user, None)
+        
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed('Token expired')
+
+        except jwt.InvalidTokenError:
+            raise exceptions.AuthenticationFailed('Invalid token')
+           
+
+      
+
+def auth_by_token(request):
+    try:
+        jwt_auth= JWTAuthentication()
+        auth= jwt_auth.authenticate(request)
+        if auth:
+            return auth[0]
+        else:
+            return None
+    except exceptions.AuthenticationFailed:
+        return exceptions.AuthenticationFailed

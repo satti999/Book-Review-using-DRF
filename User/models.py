@@ -14,6 +14,7 @@ class User(models.Model):
     email = models.EmailField(unique=True, max_length=100, null=False)
     password = models.CharField(max_length=100, null=False,)
     role = models.CharField(max_length=100,choices=[(role.value, role.name) for role in UserRole], null=False,)
+    is_verified = models.BooleanField(default=False)
 
 
 
@@ -21,7 +22,12 @@ class User(models.Model):
         ordering = ['id']
 
     def __str__(self):
-        return self.username
+        return self.email
+    
+    @property
+    def is_authenticated(self):
+        return True
+    
 
 
 
