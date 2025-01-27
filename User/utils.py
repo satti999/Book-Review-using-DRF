@@ -15,6 +15,7 @@ def generate_jwt_token(useremail):
 
 
 def generate_email_body(otp):
+    print("otp in email",otp)
     body = """
         <!DOCTYPE html>
         <html lang="en">

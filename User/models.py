@@ -50,10 +50,7 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def save(self, *args, **kwargs):
-        if self.book.published_by == self.user:
-            raise ValueError("You cannot review your own book")
-        super().save(*args, **kwargs)
+    
 
     def __str__(self):
         return f'Review by {self.user.username} on {self.book.title}'

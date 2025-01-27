@@ -1,10 +1,12 @@
 from django.shortcuts import render
 import random
+from django.core.cache import cache
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
-from .models import User,Book
+from .models import User,Book,Review
 from .authentication import JWTAuthentication 
+from .serilizer import ReviewSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serilizer import UserSignupSerializer, UserLoginSerializer,PublishBookSerializer,AuthSignUpSerializer,VerifyAccountSerializer
 from .utils import generate_jwt_token, generate_email_body,send_email
@@ -20,13 +22,28 @@ class UserSignupViewSet(viewsets.ViewSet):
 
     def create(self, request):
         try:
+            print("data 1",request.data)
             email = request.data['email']
             password = request.data['password']
-            if User.objects.filter(email=email).exists():
-                return Response({'error': 'Email already exists' }, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=email, is_verified=True).exists():
+                return Response({'error': 'User already exists' }, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=email, is_verified=False).exists():
+                otp=random.randint(100000,999999)
+                print("otp",otp)
+                cache.set('otp', otp, timeout=300)
+                recipient=email
+                print("recipient",recipient)
+                email_body="Your OTP is "+str(otp)
+                print("email_body",)
+                subject="Email Verification"
+                email_sent=send_email(recipient,subject,email_body)
+                if not email_sent:
+                        return Response({'error': 'Email not sent' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'Otp': 'Otp sent' }, status=status.HTTP_200_OK)
+
             if len(password) < 8:
                 return Response({'error': 'Password must be at least 8 characters long' }, status=status.HTTP_400_BAD_REQUEST)
-            serializer=AuthSignUpSerializer(data=request.data)
+            serializer=UserSignupSerializer(data=request.data)
             if serializer.is_valid():
                 hashed_password = make_password(password)
                 signup_data = {
@@ -35,18 +52,27 @@ class UserSignupViewSet(viewsets.ViewSet):
                     "username": serializer.data["username"],
                     "password": hashed_password
                 }
+                otp=random.randint(100000,999999)
+                print("otp",otp)
+                cache.set('otp', otp, timeout=300)
+                # email_body = generate_email_body(otp)
+                    #recipient , subject, body
+                recipient=email
+                print("recipient",recipient)
+                email_body="Your OTP is "+str(otp)
+                print("email_body",)
+                subject="Email Verification"
+                email_sent=send_email(recipient,subject,email_body)
+                if not email_sent:
+                        return Response({'error': 'Email not sent' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                #logic to handle already saved data.
                 serializer = AuthSignUpSerializer(data=signup_data)
                 if serializer.is_valid():
-                    otp=random.randint(100000,999999)
-                    email_body = generate_email_body(otp)
-                     #recipient , subject, body
-                    recipient=serializer.data['email']
-                    subject="Email Verification"
-                    email_sent=send_email(recipient,subject,email_body)
-                    if not email_sent:
-                        return Response({'error': 'Email not sent' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                    serializer.save()
-                return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
+                    serializer.save()                    
+                    return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)   
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -61,11 +87,16 @@ class VerifyOTPViewSet(viewsets.ViewSet):
             serializer=VerifyAccountSerializer(data=data)
             if serializer.is_valid():
                 email=serializer.data['email']
-                otp=serializer.data['otp']
+                otp=int(serializer.data['otp'])
+                print("type of otp",type(otp))
+                print("user otp",otp)
+                cache_otp = cache.get('otp')
+                print("type of cache otp",type(cache_otp))
+                print("cache otp",cache_otp)
                 user = User.objects.filter(email=email)
                 if not  user.exists():
                     return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-                if not user[0].otp==otp:
+                if not cache_otp==otp:
                     return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
             # user[0].is_verified = True
             # user[0].save()
@@ -120,7 +151,7 @@ class PublishBookViewSet(viewsets.ModelViewSet):
 
     def list(self, request):
         try:
-            books = Book.objects.filter(published_by=self.request.user)
+            books = Book.objects.all()
             if not books:
                 return Response({'message': 'No book found', 'data':{}}, status=status.HTTP_200_OK)
             
@@ -146,7 +177,7 @@ class PublishBookViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, pk=None):
         try:
-            book = Book.objects.filter(published_by=request.user).get(pk=pk)
+            book = Book.objects.get(pk=pk)
             if not book:
                 return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
             serializer = PublishBookSerializer(book)
@@ -195,3 +226,73 @@ class PublishBookViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Book deleted successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    authentication_classes = [JWTAuthentication]  
+    permission_classes = [IsAuthenticated] 
+    
+    print("Review class")
+
+    def create(self, request, pk=None):
+        print("create method")
+        book_id = request.query_params.get('book_id')
+        user=request.user
+        print("book id",book_id)
+        try:
+            book = Book.objects.get(pk=book_id)
+            if not book:
+                return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
+            if book.published_by==user:
+                return Response({'message':'you can not comment on your book'},status=status.HTTP_200_OK)
+            serializer = ReviewSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=request.user,book=book)
+                return Response({'message': 'Review created successfully','data':serializer.data}, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def list(self, request, pk=None):
+        try:
+            book = Book.objects.get(pk=pk)
+            if not book:
+                return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
+            reviews = Review.objects.filter(book=book)
+            if not reviews:
+                return Response({'message': 'No review found','data':{}}, status=status.HTTP_200_OK)
+            serializer = ReviewSerializer(reviews, many=True)
+            return Response({'message': 'Review Retrive successfully','data':serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return 
+    
+    def update(self, request, pk=None):
+        try:
+           review= Review.objects.get(pk=pk)
+           if not review:
+               return Response({'message': 'No comment found','data':{}}, status=status.HTTP_200_OK)
+           serializer=ReviewSerializer(data=request.data)
+           if serializer.is_valid:
+               serializer.save()
+               return Response({'message':'Your Review is update'},status=status.HTTP_200_OK)
+           else:
+               return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    def destroy(self, request,pk=None):
+        try:
+            review= Review.objects.get(pk=pk)
+            if not review:
+               return Response({'message': 'No comment found','data':{}}, status=status.HTTP_200_OK)
+            review.delete()
+            return Response({'message': 'Your review is  deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+        

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User,Book
+from .models import User,Book,Review
 
 
 
@@ -8,6 +8,9 @@ class UserSignupSerializer(serializers.ModelSerializer):
     username = serializers.CharField(max_length=50)
     password = serializers.CharField(max_length=50)
     role = serializers.CharField(max_length=50)
+    class Meta:
+        model = User
+        fields = ["email", "role", "username", "password"]
 
     def validate(self, data):
         if 'email' not in data:
@@ -52,9 +55,18 @@ class UserLoginSerializer(serializers.Serializer):
 class VerifyAccountSerializer(serializers.Serializer):
         otp = serializers.CharField(max_length=6)
         email = serializers.EmailField(max_length=50)  
+def validate(self, data):
+        if 'email' not in data:
+            raise serializers.ValidationError({"email": "This field is required."})
+        if 'otp' not in data:
+            raise serializers.ValidationError({"OTP": "This field is required."})
 
 
-
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields= [ "book", "user",  "content"]
+        read_only_fields= ['user','book']
 
 class PublishBookSerializer(serializers.ModelSerializer):       
         class Meta:
