@@ -12,44 +12,39 @@ from rest_framework import  exceptions, authentication
 
 class JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        # token = request.headers.get("token")
+        
         auth_data = authentication.get_authorization_header(request).decode('utf-8')
 
         if not auth_data or not auth_data.startswith('Bearer '):
+            # raise exceptions.AuthenticationFailed({"error": "Authentication credentials were not provided or are invalid."},code=status.HTTP_401_UNAUTHORIZED,)
             return None
-
         token = auth_data.split(' ')[1]
-
-        
         if not token:
             return Response({"error": "Token not provided"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            print("Token",token)
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         except ExpiredSignatureError:
-            raise AuthenticationFailed("Token has expired")
+            raise AuthenticationFailed({"error":"Token has expired"}, code=status.HTTP_401_UNAUTHORIZED)
         except InvalidTokenError:
-            raise AuthenticationFailed("Invalid token")
+            raise AuthenticationFailed( {"error": "Invalid token"}, code=status.HTTP_401_UNAUTHORIZED)
 
-        # Retrieve user from payload
-        try:
-            email = payload.get("email") 
-            if not email:
-                raise ValueError("Email is missing from the token payload")
+    
+        email = payload.get("email") 
+        if not email:
+            raise exceptions.AuthenticationFailed(
+                {"error": "Email is missing from the token payload"},
+                code=status.HTTP_401_UNAUTHORIZED,
+            )
 
-            print("Email:", email)
-
-            user= User.objects.filter(email=email).first()
-            if user is None:
-                raise exceptions.AuthenticationFailed('User not found')
-            return (user, None)
+        user= User.objects.filter(email=email).first()
+        if not user:
+            raise exceptions.AuthenticationFailed(
+                {"error": "User not found"}, code=status.HTTP_401_UNAUTHORIZED
+            )
+        return (user, None)
         
-        except jwt.ExpiredSignatureError:
-            raise exceptions.AuthenticationFailed('Token expired')
-
-        except jwt.InvalidTokenError:
-            raise exceptions.AuthenticationFailed('Invalid token')
+        
            
 
       
@@ -61,6 +56,9 @@ def auth_by_token(request):
         if auth:
             return auth[0]
         else:
-            return None
+            return Response(
+                {"error": "Authentication credentials were not provided."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
     except exceptions.AuthenticationFailed:
         return exceptions.AuthenticationFailed

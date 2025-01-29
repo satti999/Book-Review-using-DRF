@@ -2,6 +2,7 @@
 from django.conf import settings
 import jwt
 import smtplib
+import random
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -92,4 +93,5 @@ def send_email(recipient, subject, body):
         return False
     
 
-
+def generate_otp():
+    return random.randint(100000, 999999)

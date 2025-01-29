@@ -2,11 +2,15 @@ from django.db import models
 from enum import Enum
 
 
+
+
 # Create your models here.
 
 class UserRole(Enum):
     Admin = "admin"
     User = "user"
+
+
 
 class User(models.Model):
     id = models.AutoField(primary_key=True, unique=True)
@@ -29,30 +33,15 @@ class User(models.Model):
         return True
     
 
-
-
-class Book(models.Model):
+class Profile(models.Model):
     id = models.AutoField(primary_key=True, unique=True)
-    title = models.CharField(max_length=100, null=False)
-    author = models.CharField(max_length=100, null=False,)
-    description = models.CharField(max_length=350, null=False,)
-    published_by = models.ForeignKey(User, related_name='books', on_delete=models.CASCADE)
-    cover_image = models.ImageField(upload_to='books/covers/')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-   
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    date_of_birth = models.DateField(null=True, blank=True)
+    liked_books = models.JSONField(default=list)
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
 
 
-class Review(models.Model):
-    book = models.ForeignKey(Book, related_name='reviews', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='reviews', on_delete=models.CASCADE)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    
-
-    def __str__(self):
-        return f'Review by {self.user.username} on {self.book.title}'
-  
     

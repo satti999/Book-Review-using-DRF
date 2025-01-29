@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User,Book,Review
+from .models import User, Profile
 
 
 
@@ -62,37 +62,25 @@ def validate(self, data):
             raise serializers.ValidationError({"OTP": "This field is required."})
 
 
-class ReviewSerializer(serializers.ModelSerializer):
+class simpleUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Review
-        fields= [ "book", "user",  "content"]
-        read_only_fields= ['user','book']
-
-class PublishBookSerializer(serializers.ModelSerializer):       
-        class Meta:
-            model = Book
-            fields = ['id','title', 'author', 'description','published_by', ]
-            read_only_fields= ['published_by']
+        model = User
+        fields = ['username' ]
 
 
 
-        def validate_title(self, value):
-            if not value.strip():  # Check if the field is empty or contains only spaces
-                raise serializers.ValidationError("Title field is required.")
-            return value
-
-        def validate_author(self, value):
-            if not value.strip():
-                raise serializers.ValidationError("Author field is required.")
-            return value
-
-        def validate_description(self, value):
-            if not value.strip():
-                raise serializers.ValidationError("Description field is required.")
-            return value
-
-       
         
-       
-        
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['first_name', 'last_name',  'date_of_birth', 'profile_pic']
+
+    def validate(self, data):
+        if 'first_name' not in data:
+            raise serializers.ValidationError({"first_name": "This field is required."})
+        if 'last_name' not in data:
+            raise serializers.ValidationError({"last_name": "This field is required."})
+        if 'date_of_birth' not in data:
+            raise serializers.ValidationError({"date_of_birth": "This field is required."})
+        return data
 
