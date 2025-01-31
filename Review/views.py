@@ -44,7 +44,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-    def list(self, request, pk=None):
+    def list(self, request):
         try:
             book_id = request.query_params.get('book_id')
             book = Book.objects.get(pk=book_id)
@@ -60,6 +60,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 "book_author": book.author,
                 "reviews": [
                     {   
+                        "id": item.id,
                         "user_name": item.user.username,
                         "comments": item.content
 
@@ -67,38 +68,27 @@ class ReviewViewSet(viewsets.ModelViewSet):
                     for item in reviews
                 ]
                 }}, status=status.HTTP_200_OK)
-            #     "reviews": [
-            #         {
-            #             "user_name": item.user.username,
-            #             "comments": item.content
-            #         }
-            #         for item in reviews
-            #     ]
-            # }}, status=status.HTTP_200_OK)
-        
-        # Iterate over all review ite}, status=status.HTTP_200_OK)
         except Exception as e:
-            return 
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     def retrieve(self, request, pk=None):
         try:
-            review_id = request.query_params.get('review_id')
-            review= Review.objects.get(pk=review_id)
+            review_id = pk
+            review= Review.objects.filter(pk=review_id).first()
             if not review:
                 return Response({'message': 'No comment found','data':{}}, status=status.HTTP_200_OK)
-            serializer=ReviewSerializer(review)
             return Response({'message':'Review Retrive successfully','data':{
-                "book_title": serializer.data['book']['title'],
-                "book_author": serializer.data['book']['author'],
-                "user_name": serializer.data['user']['username'],
-                "comments": serializer.data['content']
+                "book_title": review.book.title,
+                "book_author": review.book.author,
+                "user_name": review.user.username,
+                "comments": review.content
             } },status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     def update(self, request, pk=None):
         try:
            review_id = request.query_params.get('review_id')
-           review= Review.objects.get(pk=review_id)
+           review= Review.objects.filter(pk=review_id).first()
            if not review:
                return Response({'message': 'No comment found','data':{}}, status=status.HTTP_200_OK)
            serializer=ReviewSerializer(data=request.data)

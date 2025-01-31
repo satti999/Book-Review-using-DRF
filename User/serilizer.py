@@ -71,16 +71,10 @@ class simpleUserSerializer(serializers.ModelSerializer):
 
         
 class ProfileSerializer(serializers.ModelSerializer):
+    profile_pic = serializers.ImageField( required=False, allow_null=True)
     class Meta:
         model = Profile
         fields = ['first_name', 'last_name',  'date_of_birth', 'profile_pic']
 
-    def validate(self, data):
-        if 'first_name' not in data:
-            raise serializers.ValidationError({"first_name": "This field is required."})
-        if 'last_name' not in data:
-            raise serializers.ValidationError({"last_name": "This field is required."})
-        if 'date_of_birth' not in data:
-            raise serializers.ValidationError({"date_of_birth": "This field is required."})
-        return data
+   
 

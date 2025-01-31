@@ -6,6 +6,9 @@ from rest_framework import viewsets
 from .models import User,Profile
 from Book.models import Book
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
+from .authentication import JWTAuthentication 
+from rest_framework.permissions import IsAuthenticated
 
 from .serilizer import UserSignupSerializer, UserLoginSerializer,AuthSignUpSerializer,VerifyAccountSerializer,ProfileSerializer
 from .utils import generate_jwt_token, generate_otp,send_email
@@ -53,7 +56,8 @@ class UserSignupViewSet(viewsets.ViewSet):
                         return Response({'error': 'Email not sent' }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 serializer = AuthSignUpSerializer(data=signup_data)
                 if serializer.is_valid():
-                    serializer.save()                    
+                    serializer.save() 
+                    Profile.objects.create(user=serializer.instance)                   
                     return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)   
                 else:
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -82,6 +86,7 @@ class VerifyOTPViewSet(viewsets.ViewSet):
                 user=user.first()
                 user.is_verified = True
                 user.save()
+                
                 return Response({'message': 'User verified successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -119,6 +124,11 @@ class UserLoginViewSet(viewsets.ViewSet):
 
 
 class ProfileViewSet(viewsets.ViewSet):
+    parser_classes = [MultiPartParser, FormParser]
+    authentication_classes = [JWTAuthentication]  
+    permission_classes = [IsAuthenticated] 
+
+    
     def create(self, request):
         try:
             user=request.user
@@ -146,11 +156,13 @@ class ProfileViewSet(viewsets.ViewSet):
     def retrive(self,request):
         try:
             user=request.user
-            user_profile=Profile.objects.get(user=user)
+            user_profile=Profile.objects.filter(user=user).first()
             return Response({'message':'Your profile','profile':{
                 'username':user_profile.user.username,
                 'first_name':user_profile.first_name,
                 'last_name': user_profile.last_name,
+                'date_of_birth':user_profile.date_of_birth,
+                'profile_pic':user_profile.profile_image.url if user_profile.profile_image else None
             }})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -169,4 +181,7 @@ class ProfileViewSet(viewsets.ViewSet):
             return Response({'meassage':"your liked books",'Total_likes':total_likes,'Liked_books':book_titles})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    
 

@@ -15,13 +15,14 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields= ['user','book']
 
 class PublishBookSerializer(serializers.ModelSerializer):  
-             
+        cover_image = serializers.ImageField( required=False, allow_null=True)   
         class Meta:
             model = Book
-            fields = ['id','title', 'author', 'description','published_by', ]
+            fields = ['id','title', 'author', 'description','published_by','cover_image' ]
             read_only_fields= ['published_by']
 
 
+        
 
         def validate_title(self, value):
             if not value.strip():  # Check if the field is empty or contains only spaces

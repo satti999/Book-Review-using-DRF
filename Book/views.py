@@ -9,15 +9,12 @@ from User.models import Profile
 from User.authentication import JWTAuthentication 
 from rest_framework.permissions import IsAuthenticated
 from .serializer import PublishBookSerializer
-
-
-# Create your views here.
-
-
+from rest_framework.parsers import MultiPartParser, FormParser
 
 class PublishBookViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]  
     permission_classes = [IsAuthenticated] 
+    parser_classes = [MultiPartParser, FormParser]
     pagination_class =CustomPagination
     def list(self, request):
         try:
@@ -26,11 +23,13 @@ class PublishBookViewSet(viewsets.ModelViewSet):
                 return Response({'message': 'No book found', 'data':{}}, status=status.HTTP_200_OK)
             book_data = [
             {
+                "book_id": book.id,
                 "book_title": book.title,
                 "book_author": book.author,
                 "book_likes": book.likes,
                 "book_description": book.description,
-                "published_by": book.published_by.username if book.published_by else None
+                "published_by": book.published_by.username if book.published_by else None,
+                "cover_image": book.cover_image.url if book.cover_image else None
             }
             for book in books] 
             return Response({'message': 'Books Retrive successfully',
@@ -52,25 +51,34 @@ class PublishBookViewSet(viewsets.ModelViewSet):
       
     def retrieve(self, request, pk=None):
         try:
-            book = Book.objects.get(pk=pk)
+            # search this
+            book_id = pk
+            book = Book.objects.filter(pk=book_id).first()
             if not book:
                 return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
+            if book.published_by != request.user:
+                return Response({'message': 'You can not access this book','data':{}}, status=status.HTTP_200_OK)
             
             return Response({'message': 'Book Retrive successfully','data':{
                 "book_title": book.title,
                 "book_author": book.author,
                 "book_likes": book.likes,
                 "book_description": book.description,
-                "published_by": book.published_by.username 
+                "published_by": book.published_by.username,
+                "cover_image": book.cover_image.url if book.cover_image else None
+
             }}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
     def update(self, request, pk=None):
         try:
-            book = Book.objects.filter(published_by=request.user).get(pk=pk)
+            book_id = pk
+            book = Book.objects.filter(published_by=request.user, pk=book_id).first()
             if not book:
                 return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
+            if book.published_by != request.user:
+                return Response({'message': 'You can not update this book','data':{}}, status=status.HTTP_200_OK)
             serializer = PublishBookSerializer(book, data=request.data)
             if serializer.is_valid():
                 serializer.save(publish_by=request.user)
@@ -83,9 +91,12 @@ class PublishBookViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, pk=None):
             try:
-                book = Book.objects.filter(published_by=request.user).get(pk=pk)
+                book_id = pk
+                book = Book.objects.filter(published_by=request.user, pk=book_id).first()
                 if not book:
                     return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
+                if book.published_by != request.user:
+                    return Response({'message': 'You can not update this book','data':{}}, status=status.HTTP_200_OK)
                 serializer = PublishBookSerializer(book, data=request.data, partial=True)
                 if serializer.is_valid():
                     serializer.save(publish_by=request.user)
@@ -100,7 +111,8 @@ class PublishBookViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, pk=None):
         try:
-            book = Book.objects.filter(published_by=request.user).get(pk=pk)
+            book_id = pk
+            book = Book.objects.filter(published_by=request.user, pk=book_id).first()
             if not book:
                 return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
             book.delete()
@@ -110,35 +122,43 @@ class PublishBookViewSet(viewsets.ModelViewSet):
         
 
 
-    @action(detail=True, methods=['post'], url_name='like_book')
-    def like_book(self, request, book_id=None):
+    @action(detail=False, methods=['post'],url_path='likebook', url_name='likebook')
+    def like_book(self, request):
         try:
-            # get user
+            print("user like book")
             user=request.user
 
-            book_id = request.query_params.get('book_id')
+            book_id = request.data["book_id"]
+            
             if not book_id:
                 return Response({'message': 'please provide book id','data':{}}, status=status.HTTP_200_OK)
             book = Book.objects.get(pk=book_id)
+            print("book id",book_id)
+            print("User id",user)
             if not book:
                 return Response({'message': 'No book found','data':{}}, status=status.HTTP_200_OK)
             user_profile = Profile.objects.get(user=user)  
             if book_id in user_profile.liked_books:
                 return Response({'message': 'Book already liked','data':{}}, status=status.HTTP_200_OK)
+            a=0
             book.likes += 1
+            a+=1
+            print("likes",book.likes,'a',a)
             book.save()
             user_profile.liked_books.append(book_id)
             user_profile.save()
             # add the book id in the user profile table
             return Response({'message': 'Book liked successfully','data':{}}, status=status.HTTP_200_OK)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'],url_name='unlike_book')
+    @action(detail=False, methods=['post'],url_path='unlike_book')
     def unlike_book(self, request, pk=None):
         try:
             user=request.user
-            book_id = request.query_params.get('book_id')
+            book_id = request.data["book_id"]
             if not book_id:
                 return Response({'message': 'please provide book id','data':{}}, status=status.HTTP_200_OK)
             book = Book.objects.get(pk=book_id)
@@ -151,11 +171,6 @@ class PublishBookViewSet(viewsets.ModelViewSet):
             book.save()
             user_profile.liked_books.remove(book_id)
             user_profile.save()
-            # user profile
-            # get liked_books
-            #check if the book id is present or not
-            # if present then remove it
-            # remove the book id from the user profile table
             return Response({'message': 'Book unliked successfully','data':{}}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
