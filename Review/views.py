@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework import viewsets
 from .models import Review
 from Book.models import Book
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from User.authentication import JWTAuthentication 
 
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +34,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
             serializer = ReviewSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(user=request.user,book=book)
+                self.notify_publisher(book, user)
                 return Response({'message': 'Review created successfully','data':{
                     "book_title": book.title,
                     "book_author": book.author,
@@ -112,5 +115,18 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Your review is  deleted successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def notify_publisher(self, user,book):
+           channel_layer = get_channel_layer()
+           async_to_sync(channel_layer.group_send)(
+                f"notifications_{book.published_by.id}",
+                {
+                 "type": "send_notification",
+                  "message": f"User {user.username} commented on your book: {book.title}",
+                },
+               
+           )
+          
+        
             
         

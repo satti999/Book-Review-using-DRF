@@ -4,7 +4,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import Book
+from .filter import BookFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
 from User.models import Profile
 from User.authentication import JWTAuthentication 
 from rest_framework.permissions import IsAuthenticated
@@ -14,8 +19,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 class PublishBookViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]  
     permission_classes = [IsAuthenticated] 
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = BookFilter
     parser_classes = [MultiPartParser, FormParser]
     pagination_class =CustomPagination
+    search_fields = ['title','author', 'description'] 
+
     def list(self, request):
         try:
             books = Book.objects.all()
@@ -147,6 +156,7 @@ class PublishBookViewSet(viewsets.ModelViewSet):
             book.save()
             user_profile.liked_books.append(book_id)
             user_profile.save()
+            self.notify_publisher(book, user)
             # add the book id in the user profile table
             return Response({'message': 'Book liked successfully','data':{}}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -174,3 +184,19 @@ class PublishBookViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Book unliked successfully','data':{}}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    def notify_publisher(self, book, user):
+    # Get the channel layer
+        channel_layer = get_channel_layer()
+        print(f"Sending notification to publisher {book.published_by.id} by {book.published_by.username}")
+        print(f"Message: User {user.username} liked your book: {book.title}")
+
+        # Send a message to the publisher's WebSocket group
+        async_to_sync(channel_layer.group_send)(
+            f"notifications_{book.published_by.id}",  # Group name for the publisher
+            {
+                "type": "send_notification",
+                "message": f"User {user.username} liked your book: {book.title}",
+            },
+        )
