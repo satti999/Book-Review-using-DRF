@@ -24,4 +24,7 @@ urlpatterns = [
     path('auth/', include('User.urls')),
     path('book/', include('Book.urls')),
    
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

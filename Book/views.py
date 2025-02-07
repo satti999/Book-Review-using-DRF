@@ -1,5 +1,6 @@
 from django.shortcuts import render
-from Book_Review.utils import CustomPagination
+from book_review.utils import CustomPagination
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
@@ -17,34 +18,59 @@ from .serializer import PublishBookSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 
 class PublishBookViewSet(viewsets.ModelViewSet):
+    queryset = Book.objects.all()
+    serializer_class = PublishBookSerializer
     authentication_classes = [JWTAuthentication]  
     permission_classes = [IsAuthenticated] 
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = BookFilter
     parser_classes = [MultiPartParser, FormParser]
     pagination_class =CustomPagination
-    search_fields = ['title','author', 'description'] 
+    search_fields = ['title','author' 'description'] 
 
+    
     def list(self, request):
         try:
+            
             books = Book.objects.all()
             if not books:
-                return Response({'message': 'No book found', 'data':{}}, status=status.HTTP_200_OK)
-            book_data = [
-            {
-                "book_id": book.id,
-                "book_title": book.title,
-                "book_author": book.author,
-                "book_likes": book.likes,
-                "book_description": book.description,
-                "published_by": book.published_by.username if book.published_by else None,
-                "cover_image": book.cover_image.url if book.cover_image else None
-            }
-            for book in books] 
-            return Response({'message': 'Books Retrive successfully',
-               'data':book_data}, status=status.HTTP_200_OK)
+                return Response({'message': 'No book found', 'data': {}}, status=status.HTTP_200_OK)
+             
+
+        # Custom filtering
+            author = request.GET.get('author')
+            if author:
+                books = books.filter(author__icontains=author)  # Case-insensitive search
+
+            published_by = request.GET.get('published_by')
+            if published_by:
+                    books = books.filter(published_by__username__icontains=published_by)
+
+            search = request.GET.get('search')
+            if search:
+                books = books.filter(title__icontains=search) | books.filter(author__icontains=search)| books.filter(description__icontains=search) 
+
+            # Apply pagination
+            page = self.paginate_queryset(books)
+            if page is not None:
+                book_data = [
+                    {
+                        "book_id": book.id,
+                        "book_title": book.title,
+                        "book_author": book.author,
+                        "book_likes": book.likes,
+                        "book_description": book.description,
+                        "published_by": book.published_by.username if book.published_by else None,
+                        "cover_image": book.cover_image.url if book.cover_image else None
+                    }
+                    for book in page
+                ]
+                return self.get_paginated_response(book_data)  # Returns paginated response
+
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
   
     def create(self, request):
         try:

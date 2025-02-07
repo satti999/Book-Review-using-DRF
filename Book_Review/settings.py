@@ -59,7 +59,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Book_Review.urls'
+ROOT_URLCONF = 'book_review.urls'
 
 TEMPLATES = [
     {
@@ -79,7 +79,7 @@ TEMPLATES = [
 
 #WSGI_APPLICATION = 'Book_Review.wsgi.application'
 
-ASGI_APPLICATION = 'Book_Review.asgi.application'
+ASGI_APPLICATION = 'book_review.asgi.application'
 
 
 CHANNEL_LAYERS = {
@@ -104,15 +104,15 @@ CACHES = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
-       "ENGINE": "django.db.backends.postgresql",
-       "NAME": "book_management",
-       "USER": "satti",
-       "PASSWORD": "admin123",
-       "HOST": "localhost",
-       "PORT": "5432",
-       
+        'ENGINE': os.environ.get('DB_DRIVER', 'django.db.backends.postgresql'),
+        'NAME': os.environ.get('PG_DB', 'book_management'),
+        'USER': os.environ.get('PG_USER', 'satti'),
+        'PASSWORD': os.environ.get('PG_PASSWORD', 'admin123'),
+        'HOST': os.environ.get('PG_HOST', 'localhost'),
+        'PORT': os.environ.get('PG_PORT', '5432'),
     }
 }
 
@@ -158,6 +158,7 @@ EMAIL_USE_TLS = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -165,6 +166,9 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
+     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 3,
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_AUTHENTICATION_CLASSES': (
        'User.authentication.JWTAuthentication',  # Use your custom authentication globally
     ),
@@ -173,5 +177,3 @@ REST_FRAMEWORK = {
     # ),
 }
 
-MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'mediafiles')
-MEDIA_URL = '/mediafiles/'

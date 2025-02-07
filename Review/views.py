@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from Book_Review.utils import CustomPagination
+from book_review.utils import CustomPagination
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
@@ -56,7 +56,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             reviews = Review.objects.filter(book=book)
             if not reviews:
                 return Response({'message': 'No review found','data':{}}, status=status.HTTP_200_OK)
-            serializer = ReviewSerializer(reviews, many=True)
             # return Response({'data': serializer.data}, status=status.HTTP_200_OK)
             return Response({'message': 'Review Retrive successfully','data': {
                 "book_title": book.title,
