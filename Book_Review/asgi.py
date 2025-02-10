@@ -15,7 +15,7 @@ from django.urls import path, re_path
 from channels.auth import AuthMiddlewareStack
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Book_Review.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'book_review.settings')
 django_asgi_app = get_asgi_application()
 
 

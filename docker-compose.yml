@@ -3,7 +3,7 @@ services:
   book_review:
     container_name: book_review
     build: .
-    command: ["daphne", "-b", "0.0.0.0", "-p", "8000", "book_review.asgi:application"]
+    command: python manage.py runserver 0.0.0.0:8000
     ports:
       - "8000:8000"
     environment:
@@ -16,10 +16,10 @@ services:
       - db
   db:
     container_name: db
-    image: postgres:12
+    image: postgres:13
     environment:
       - POSTGRES_USER=satti
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD=admin123
       - POSTGRES_DB=book_management
     ports:
       - "5432:5432"
